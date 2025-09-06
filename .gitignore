@@ -1,0 +1,41 @@
+# Laravel & PHP
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+/.idea
+/.vscode
+/.phpunit.result.cache
+/.env
+/.env.local
+/.env.*.backup
+/.homestead
+/.phpstorm.meta.php
+
+# Laravel specific
+/bootstrap/cache/*.php
+/storage/framework/cache/data
+/storage/logs/*.log
+
+# Composer & NPM
+/composer.lock
+/package-lock.json
+/yarn.lock
+/pnpm-lock.yaml
+
+# System files
+.DS_Store
+Thumbs.db
+*.log
+*.sqlite
+*.sqlite3
+
+# IDE & editor files
+*.sublime-workspace
+*.sublime-project
+*.phpstorm.meta.php
+
+# Optional: Ignore IDE directories
+.idea/
+.vscode/
+*.swp

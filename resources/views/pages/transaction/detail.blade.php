@@ -98,7 +98,7 @@
 
                     <div class="mb-3">
                         <label for="purchase" class="form-label"><span class="text-danger">* </span>Total Bayar</label>
-                        <input type="text" name="purchase" id="purchase" class="form-control" required />
+                        <input type="text" name="purchase" id="purchase" class="form-control" disabled />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -175,9 +175,11 @@
 
                 const month = row.find("td").eq(1).text().trim();
                 const price = row.find("td").eq(2).text().replace("Rp", "").replace(/\./g, "").trim();
+                
 
                 $("#month").val(month);
                 $("#price").val(price);
+                $("#purchase").val(price);
                 $("#idTransaction").val(transactionId);
 
                 console.log('month :>> ', month);

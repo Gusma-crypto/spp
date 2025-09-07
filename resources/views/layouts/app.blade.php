@@ -16,11 +16,21 @@
         .btn-outline-info:hover {
             color: white !important;
         }
+        table.table th, 
+        table.table td {
+            padding: 6px 10px !important; /* kecilkan jarak vertikal */
+            vertical-align: middle !important; /* konten rata tengah vertikal */
+        }
+
+        table.table {
+            font-size: 14px; /* opsional: kecilkan font agar lebih rapat */
+        }
 
         table.dataTable {
             width: 100% !important;
             border-collapse: collapse !important;
         }
+    
 
         div.dataTables_wrapper {
             overflow-x: auto;

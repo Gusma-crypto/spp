@@ -31,15 +31,17 @@
                         <td>{{ $x->email }}</td>
                         <td>{{ $x->phone }}</td>
                         <td>{{ $x->address }}</td>
-                        <td class="d-grid gap-2">
-                            <a href="{{ route('master.user.edit', $x->id) }}" class="btn btn-outline-info mb-1">Ubah</a>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="{{ route('master.user.edit', $x->id) }}" class="btn btn-outline-info mb-1 btn-sm"><i class="bi bi-pencil-square"></i></a>
 
-                            <form action="{{ route('master.user.destroy', $x->id) }}" method="post" class="d-grid gap-2">
-                                @csrf
-                                @method('delete')
+                                <form action="{{ route('master.user.destroy', $x->id) }}" method="post" class="d-grid gap-2">
+                                    @csrf
+                                    @method('delete')
 
-                                <button type="submit" class="btn btn-outline-danger">Hapus</button>
-                            </form>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

@@ -19,15 +19,19 @@
                     <tr>
                         <td>{{ $x->no }}</td>
                         <td>{{ $x->name }}</td>
-                        <td class="d-grid gap-2">
-                            <a href="{{ route('master.class.edit', $x->id) }}" class="btn btn-outline-info mb-1">Ubah</a>
-
-                            <form action="{{ route('master.class.destroy', $x->id) }}" method="post" class="d-grid gap-2">
-                                @csrf
-                                @method('delete')
-
-                                <button type="submit" class="btn btn-outline-danger">Hapus</button>
-                            </form>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="{{ route('master.class.edit', $x->id) }}" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-pencil-square"></i> Ubah
+                                </a>
+                                <form action="{{ route('master.class.destroy', $x->id) }}" method="post">
+                                    @csrf
+                                    @method('delete')
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin hapus data kelas ini?')">
+                                        <i class="bi bi-trash"></i> Hapus
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

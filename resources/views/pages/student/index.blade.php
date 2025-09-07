@@ -23,7 +23,7 @@
 
         <a href="{{ route('master.student.create') }}" class="btn btn-outline-success btn-block mb-4">Tambah Data</a>
 
-        <table id="table-data">
+        <table id="table-data" class="table table-sm table-bordered table-striped align-middle">
             <thead>
                 <tr>
                     <th>No</th>
@@ -56,16 +56,21 @@
                         <td>{{ $x->email }}</td>
                         <td>{{ $x->phone }}</td>
                         <td>{{ $x->address }}</td>
-                        <td class="d-grid gap-2">
-                            <a href="{{ route('master.student.edit', $x->id) }}" class="btn btn-outline-info mb-1"><i class="bi bi-pencil-square"></i></a>
-
-                            <form action="{{ route('master.student.destroy', $x->id) }}" method="post" class="d-grid gap-2">
-                                @csrf
-                                @method('delete')
-
-                                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
-                            </form>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="{{ route('master.student.edit', $x->id) }}" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                <form action="{{ route('master.student.destroy', $x->id) }}" method="post">
+                                    @csrf
+                                    @method('delete')
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin hapus data?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
+
                     </tr>
                 @endforeach
             </tbody>

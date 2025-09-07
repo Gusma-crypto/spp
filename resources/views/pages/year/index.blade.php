@@ -19,15 +19,17 @@
                     <tr>
                         <td>{{ $x->no }}</td>
                         <td>{{ $x->year }}</td>
-                        <td class="d-grid gap-2">
-                            <a href="{{ route('master.year.edit', $x->id) }}" class="btn btn-outline-info mb-1"><i class="bi bi-pencil-square"></i></a>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="{{ route('master.year.edit', $x->id) }}" class="btn btn-outline-info mb-1 btn-sm"><i class="bi bi-pencil-square"></i></a>
 
-                            <form action="{{ route('master.year.destroy', $x->id) }}" method="post" class="d-grid gap-2">
-                                @csrf
-                                @method('delete')
+                                <form action="{{ route('master.year.destroy', $x->id) }}" method="post" class="d-grid gap-2">
+                                    @csrf
+                                    @method('delete')
 
-                                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
-                            </form>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

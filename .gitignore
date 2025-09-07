@@ -1,5 +1,5 @@
 # Laravel & PHP
-/vendor
+
 /node_modules
 /public/storage
 /storage/*.key
@@ -18,7 +18,7 @@
 /storage/logs/*.log
 
 # Composer & NPM
-/composer.lock
+
 /package-lock.json
 /yarn.lock
 /pnpm-lock.yaml

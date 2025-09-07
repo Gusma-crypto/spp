@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ExpenseExport;
 use App\Exports\IncomeExport;
+use App\Exports\IncomeRkpExport;
 use App\Exports\SppPerKelasExport;
 use App\Exports\SppPerSiswaExport;
 use App\Exports\SppPerTahunExport;
@@ -17,6 +18,7 @@ use App\Models\Role;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf; // <--- ini yang benar
 use Maatwebsite\Excel\Facades\Excel;
 
 
@@ -181,19 +183,70 @@ class ReportController extends Controller
 
     public function exportIncomePdf(Request $request) 
     {
-        $data = \DB::table('transactions')
-            ->selectRaw('DATE(created_at) as tanggal, SUM(amount) as total_income, COUNT(*) as jumlah_transaksi')
+         // Ambil data per tanggal dari tabel incomes
+        $data = DB::table('incomes')
+            ->selectRaw('DATE(`date`) as tanggal, SUM(total_income) as total_income, COUNT(*) as jumlah_transaksi')
             ->groupBy('tanggal')
             ->orderBy('tanggal', 'asc')
             ->get();
 
-        $chartImage = $request->input('chart_image'); // base64 string dari canvas
+        // Hitung total semua pemasukan & transaksi
+        $grandTotalIncome = $data->sum('total_income');
+        $grandTotalTransaksi = $data->sum('jumlah_transaksi');
 
-        $pdf = \PDF::loadView('report.income-pdf', compact('data', 'chartImage'))
-                ->setPaper('a4', 'portrait');
+        // Ambil grafik (base64 dari canvas)
+        $chartImage = $request->input('chart_image');
 
+        // Load view PDF
+        $pdf = Pdf::loadView('pages.report.income-pdf', [
+            'data' => $data,
+            'chartImage' => $chartImage,
+            'grandTotalIncome' => $grandTotalIncome,
+            'grandTotalTransaksi' => $grandTotalTransaksi,
+        ])->setPaper('a4', 'portrait');
+
+        // Download PDF
         return $pdf->download('laporan-pemasukan-' . now()->format('Y-m-d') . '.pdf');
     }
+    /**
+     * export laporan pemasukan excell
+     */
+    public function exportRkpExcel(Request $request)
+    {
+        $from = $request->input('from');
+        $to   = $request->input('to');
+
+        // ambil chart image (base64)
+        $chartImage = $request->input('chart_image');
+        $chartPath = null;
+
+        if ($chartImage) {
+            $chartData = explode(',', $chartImage)[1]; // hapus prefix data:image/png;base64,
+            $chartPath = storage_path('app/temp/chart.png');
+
+            // buat folder temp jika belum ada
+            if (!file_exists(dirname($chartPath))) {
+                mkdir(dirname($chartPath), 0755, true);
+            }
+
+            file_put_contents($chartPath, base64_decode($chartData));
+        }
+
+        // download excel
+        $fileName = 'rekap_pemasukan_' . now()->format('Y-m-d') . '.xlsx';
+        $export   = new IncomeRkpExport($from, $to, $chartPath);
+
+        $response = Excel::download($export, $fileName);
+
+        // hapus chart image setelah export
+        if ($chartPath && file_exists($chartPath)) {
+            unlink($chartPath);
+        }
+
+        return $response;
+    }
+
+    
 
     public function exportExpense(Request $request) {
         try {
@@ -311,7 +364,7 @@ class ReportController extends Controller
         } catch (\Throwable $th) {
             return redirect()->route('report.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
         }
-    }
+    } 
 
     public function unpaidDetails(Request $request)
     {

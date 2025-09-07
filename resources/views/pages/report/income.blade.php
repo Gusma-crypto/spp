@@ -17,17 +17,28 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Tabel Laporan Pemasukan</h5>
-            <div>
-                <button id="exportPdfBtn" class="btn btn-outline-danger">
-                    <i class="bi bi-file-earmark-pdf"></i> Export PDF
-                </button>
-                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#yearModal">
-                    <span class="bi bi-file-earmark-excel"></span> Export Excel
-                </button>
+             <div class="d-flex gap-2 mb-3">
+                {{-- Export PDF --}}
+                <form action="{{ route('report.export.incomePdf') }}" method="POST" id="exportPdfForm">
+                    @csrf
+                    <input type="hidden" name="chart_image" id="chartImageInput">
+                    <button type="button" id="exportPdfBtn" class="btn btn-outline-danger">
+                        <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                    </button>
+                </form>
+
+                {{-- Export Excel --}}
+                <form action="{{ route('report.export.incomeexcel') }}" method="POST" id="exportExcelForm">
+                    @csrf
+                    <input type="hidden" name="chart_image" id="chartImageInputExcel">
+                    <button type="submit" class="btn btn-outline-success">
+                        <i class="bi bi-file-excel"></i> Export Rekap Excel
+                    </button>
+                </form>
             </div>
-        </div>
 
         </div>
+
         <div class="card-body">
             <table id="table-data" class="table table-bordered table-striped">
                 <thead>
@@ -48,7 +59,8 @@
                             <td>{{ $item->jumlah_transaksi }}</td>
                             <td>
                                 <a href="{{ route('report.income.detail', ['date' => $item->tanggal]) }}" 
-                                   class="btn btn-outline-success"><span class="bi bi-search"> Detail
+                                   class="btn btn-outline-success">
+                                   <span class="bi bi-search"></span> Detail
                                 </a>
                             </td>
                         </tr>
@@ -98,58 +110,19 @@
             }
         });
 
-        // Existing scripts
-        $(document).ready(function () {
-            $(".data-select").select2({
-                width: "resolve"
-            });
-
-            @if(Session::has('success'))
-                notyf.success(@json(Session::get('success')));
-            @endif
-
-            @if ($errors->any())
-                @foreach ($errors->all() as $error)
-                    notyf.error(@json($error));
-                @endforeach
-            @endif
-
-            @if (Session::has('error'))
-                notyf.error(@json(Session::get('error')));
-            @endif
-        });
-    </script>
-
-    
-    <script>
-        // export PDF
-        // Handle export PDF button click
+        // Export PDF -> ambil chart jadi image & submit form
         document.getElementById("exportPdfBtn").addEventListener("click", function () {
             const canvas = document.getElementById("incomeChart");
-            const chartImage = canvas.toDataURL("image/png"); // convert chart jadi base64 image
+            const chartImage = canvas.toDataURL("image/png"); 
+            document.getElementById("chartImageInput").value = chartImage;
+            document.getElementById("exportPdfForm").submit();
+        });
 
-            // kirim pakai form POST
-            const form = document.createElement("form");
-            form.method = "POST";
-            form.action = "{{ route('report.export.incomePdf') }}";
-
-            // CSRF token
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
-            const csrfInput = document.createElement("input");
-            csrfInput.type = "hidden";
-            csrfInput.name = "_token";
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
-
-            // data chart image
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "chart_image";
-            input.value = chartImage;
-            form.appendChild(input);
-
-            document.body.appendChild(form);
-            form.submit();
+        // Export Excel - inject chart base64 ke hidden input
+        document.getElementById("exportExcelForm").addEventListener("submit", function () {
+            const canvas = document.getElementById("incomeChart");
+            const chartImage = canvas.toDataURL("image/png");
+            document.getElementById("chartImageInputExcel").value = chartImage;
         });
     </script>
 @endsection

@@ -81,7 +81,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::delete('/destroy/${id}', 'destroy')->name('master.user.destroy');
             });
         });
-
+ 
         Route::prefix('data-siswa')->group(function () {
             Route::controller(StudentController::class)->group(function () {
                 Route::get('/', 'index')->name('master.student.index');
@@ -111,7 +111,9 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/spp', 'index')->name('report.spp.index');
                 Route::get('/spp/detail/{id}', 'laporanSPPDetail')->name('report.spp.detail');
                 Route::get('/pemasukan', 'indexIncome')->name('report.income.index');
-                // Route::get('/grafik', 'grafikIncome')->name('report.grafik.index');
+                Route::get('/export/income', 'exportIncomePdf')->name('report.export.incomepdf');
+                Route::post('/export/income-rkp-excel', 'exportRkpExcel')->name('report.export.incomeexcel');
+                Route::get('/grafik/income')->name('report.grafik.index');
                 Route::get('/pemasukan/detail/{date}', 'detailIncome')->name('report.income.detail');
                 Route::get('/pengeluaran', 'IndexExpense')->name('report.expense.index');
                 Route::get('/export/student/{student}', 'exportStudent')->name('report.export.student');

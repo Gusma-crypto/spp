@@ -11,7 +11,7 @@
 
     <div class="card-body">
         <div class="row mb-4">
-            @if($role->name === "Bendahara")
+            @if($role->name === "Bendahara"|| @role->name === "Super Admin")
                 <div class="col-10">
                     <a href="{{ route('master.expense.create') }}" class="btn btn-outline-success btn-block">Tambah Data</a>
                 </div>
@@ -30,7 +30,7 @@
                     <th>Keterangan</th>
                     <th>Status</th>
                     <th>Bukti File</th>
-                    @if($role->name === "Bendahara")
+                    @if($role->name === "Bendahara"|| @role->name === "Super Admin")
                     <th>Aksi</th>
                     @endif
                 </tr>
@@ -79,7 +79,7 @@
                                 {{ "-" }}
                             @endif
                         </td>
-                        @if($role->name === "Bendahara")
+                        @if($role->name === "Bendahara"|| @role->name === "Super Admin")
                             <td class="d-grid gap
                         <td class="d-grid gap-2">
                             <a href="{{ route('master.expense.edit', $x->id) }}" class="btn btn-outline-primary">

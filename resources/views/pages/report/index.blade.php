@@ -8,7 +8,6 @@
             <button type="button" class="btn btn-outline-success me-3" data-bs-toggle="modal" data-bs-target="#classModal"><span class="bi bi-file-earmark-excel"></span> Export Berdasarkan Kelas</button>
             <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#yearModal"><span class="bi bi-file-earmark-excel"></span> Export Berdasarkan Tahun Ajaran</button>
         </div>
-
         <table id="table-data">
             <thead>
                 <tr>

@@ -22,8 +22,12 @@ Auth::routes();
 
 Route::middleware(['auth'])->group(function () {
     Route::prefix('dashboard')->group(function () {
-        Route::get('/', [HomeController::class, 'index'])->name('dashboard');
-
+        // Route::get('/', [HomeController::class, 'index'])->name('dashboard');
+        Route::controller(HomeController::class)->group(function () {
+            Route::get('/', 'index')->name('dashboard');
+            Route::get('/export/unpaid', 'unpaidExport')->name('export.unpaid');
+        });
+        
         Route::prefix('data-pemasukan')->group(function () {
             Route::controller(IncomeController::class)->group(function () {
                 Route::get('/', 'index')->name('master.income.index');
@@ -98,6 +102,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/', 'index')->name('spp.transaction.index');
                 Route::get('/create', 'create')->name('spp.transaction.create');
                 Route::post('/store', 'store')->name('spp.transaction.store');
+                Route::post('/notification', 'notificationHandler')->name('spp.transaction.midtransNotification');
                 Route::post('/manual-store', 'manualStore')->name('spp.transaction.manualStore');
                 Route::get('/show/{id}', 'show')->name('spp.transaction.show');
                 Route::get('/edit/{id}', 'edit')->name('spp.transaction.edit');

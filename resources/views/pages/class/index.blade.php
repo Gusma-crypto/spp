@@ -31,7 +31,7 @@
                                         <i class="bi bi-trash"></i> Hapus
                                     </button>
                                 </form>
-                            </div>
+                            </div> 
                         </td>
                     </tr>
                 @endforeach

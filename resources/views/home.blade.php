@@ -194,7 +194,9 @@
                 <h6>Bulan Belum Lunas ({{ $currentYear }})</h6>
             </div>
             <div class="card-body">
-                @if($unpaidMonths->isEmpty())
+               @if($allTransactions->isEmpty())
+                    <p class="text-muted">Belum ada transaksi</p>
+                @elseif($unpaidMonths->isEmpty())
                     <p class="text-success">Semua bulan sudah lunas 🎉</p>
                 @else
                     <ul class="list-group">
@@ -215,7 +217,9 @@
                 <h6>Bulan Lunas ({{ $currentYear }})</h6>
             </div>
             <div class="card-body">
-                @if($paidMonths->isEmpty())
+                @if($allTransactions->isEmpty())
+                    <p class="text-muted">Belum ada transaksi</p>
+                @elseif($paidMonths->isEmpty())
                     <p class="text-danger">Belum ada bulan yang lunas</p>
                 @else
                     <ul class="list-group">

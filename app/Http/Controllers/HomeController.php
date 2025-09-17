@@ -75,8 +75,15 @@ class HomeController extends Controller
 
         // ===== Grafik Lunas vs Belum Lunas per Tahun Ajaran =====
         $academicYear = AcademicYear::latest()->first();
+        
+        if (!$academicYear) {
+            // solusi cepat: kasih default tahun berjalan
+            $currentYear = now()->year;
+            $trxQuery = Transaction::where('year', $currentYear);
+        } else {
+            $trxQuery = Transaction::where('year', $academicYear->year);
+        }
 
-        $trxQuery = Transaction::where('year', $academicYear->year);
         if ($user->role->name === 'Siswa') {
             $trxQuery->where('student_id', $user->id);
         }
@@ -134,6 +141,7 @@ class HomeController extends Controller
             'totalTagihan',
             'totalDibayar',
             'sisaTagihan',
+            'allTransactions',
             
         ));
     }

@@ -61,14 +61,14 @@
 
             <div id="main-content">
                 <div class="page-heading">
-                    <div class="page-title mb-4">
+                    <div class="page-title mb-2"> <!-- mb-4 diganti mb-2 supaya lebih rapat -->
                         <div class="row">
                             <div class="col-12 col-md-6 order-md-1 order-last">
-                                <h3>@yield('title')</h3>
+                                <h3 class="mb-1">@yield('title')</h3> <!-- bisa diatur mb-0 atau mb-1 -->
                             </div>
                             <div class="col-12 col-md-6 order-md-2 order-first">
                                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
-                                    <ol class="breadcrumb">
+                                    <ol class="breadcrumb mb-0"> <!-- mb-0 supaya rapat -->
                                         @foreach($breadcrumbs as $breadcrumb)
                                             @if($breadcrumb['url'])
                                                 <li class="breadcrumb-item"><a href="{{ $breadcrumb['url'] }}">{{ $breadcrumb['label'] }}</a></li>
@@ -82,7 +82,7 @@
                         </div>
                     </div>
 
-                    <section class="section">
+                    <section class="section pt-2"> <!-- pt-2 atau pt-1 untuk rapatkan jarak atas -->
                         <div class="card">
                             @yield('content')
                         </div>

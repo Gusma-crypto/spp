@@ -19,6 +19,7 @@ return new class extends Migration
             $table->bigInteger('price');
             $table->text('type');
             $table->text('status');
+            $table->timestamp('expired_at')->nullable();
             $table->string('snap_token')->nullable();
             $table->timestampsTz();
             $table->softDeletes();

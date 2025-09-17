@@ -19,7 +19,14 @@ class Transaction extends Model
         'price',
         'type', // Manual, Payment Gateway
         'status', // Not Yet, Waiting for Validation, OK
-        'snap_token'
+        'snap_token',
+        'expired_at',
+    ];
+
+    // cast expired_at ke datetime otomatis
+    protected $casts = [
+        'expired_at' => 'datetime',
+        'date'       => 'date',
     ];
 
     // Transaction.php

@@ -99,6 +99,7 @@ class HomeController extends Controller
         $unpaidMonths = collect();
         $paidMonths   = collect();
         $totalTagihan = $totalDibayar = $sisaTagihan = 0;
+        $allTransactions = collect();
 
         if ($user->role->name === 'Siswa') {
             $allTransactions = Transaction::where('student_id', $user->id)

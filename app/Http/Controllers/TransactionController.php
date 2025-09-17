@@ -55,14 +55,6 @@ class TransactionController extends Controller {
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
@@ -77,17 +69,36 @@ class TransactionController extends Controller {
 
             $transaction = Transaction::find($data['transaction_id']);
 
+            if (!$transaction) {
+                return response()->json(['message' => 'Transaction not found'], 404);
+            }
+
+            // Set status pending dan set expired_at = now + 2.5 menit (150 detik)
             $transaction->update([
-                'type'          => "Payment Gateway",
-                'status'        => "Pending"
+                'type'       => "Payment Gateway",
+                'status'     => "Pending",
+                'expired_at' => Carbon::now()->addSeconds(150),
             ]);
 
-            $snapParams = array(
-                'transaction_details' => array(
-                    'order_id'      => rand(),
-                    'gross_amount'  => $transaction->price,
-                )
-            );
+            // Midtrans snap token
+            $snapParams = [
+                'transaction_details' => [
+                    'order_id'     => rand(), // sebaiknya pakai id transaksi biar konsisten
+                    'gross_amount' => $transaction->price,
+                ],
+                // optional: sinkronkan expired time
+                'expiry' => [
+                    'start_time' => Carbon::now()->format('Y-m-d H:i:s O'),
+                    'unit'       => 'seconds',
+                    'duration'   => 150,
+                ],
+                // 👇 Tambahin callback redirect URL dari config/env
+                'callbacks' => [
+                    'finish'   => config('midtrans.finish_redirect_url'),
+                    'unfinish' => config('midtrans.unfinish_redirect_url'),
+                    'error'    => config('midtrans.error_redirect_url'),
+                ],
+            ];
 
             $snapToken = \Midtrans\Snap::getSnapToken($snapParams);
 
@@ -103,7 +114,7 @@ class TransactionController extends Controller {
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a manually created payment (manual verification).
      */
     public function manualStore(Request $request)
     {
@@ -111,10 +122,12 @@ class TransactionController extends Controller {
             $data = $request->all();
 
             $transaction = Transaction::find($data['transaction_id']);
-            //update status to OK and type to manual
+            // update status to OK and type to manual
             $transaction->update([
-                'type'          => "Manual",
-                'status'        => "OK"
+                'type'   => "Manual",
+                'status' => "OK",
+                // optionally clear expired_at
+                'expired_at' => null,
             ]);
 
             // ambil nama siswa
@@ -137,8 +150,6 @@ class TransactionController extends Controller {
                 'message' => "Pembayaran manual berhasil dicatat",
                 'data'    => $transaction
             ]);
-
-            return response()->json($transaction);
         }  catch (ValidationException $e) {
             return response()->json($e->errors(), 500);
         } catch (\Throwable $th) {
@@ -146,7 +157,7 @@ class TransactionController extends Controller {
         }
     }
 
-    /** 
+    /**
      * Display the specified resource.
      */
     public function show(string $id, Request $request)
@@ -159,6 +170,13 @@ class TransactionController extends Controller {
                 ->join('academic_years', 'academic_years.id', '=', 'users.academic_year_id')
                 ->where('users.id', $id)
                 ->first();
+
+            // ====== Pastikan transaksi pending yang sudah expired menjadi Expired di server ======
+            Transaction::where('student_id', $id)
+                ->where('status', 'Pending')
+                ->whereNotNull('expired_at')
+                ->where('expired_at', '<', Carbon::now())
+                ->update(['status' => 'Expired']);
 
             $data = Transaction::select("*")
                 ->where('student_id', '=', $id)
@@ -178,14 +196,6 @@ class TransactionController extends Controller {
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $id)
@@ -195,7 +205,8 @@ class TransactionController extends Controller {
 
             // update status transaksi
             $transaction->update([
-                'status' => "OK"
+                'status' => "OK",
+                'expired_at' => null, // clear expired when paid
             ]);
             
             // ambil nama siswa
@@ -246,5 +257,53 @@ class TransactionController extends Controller {
     public function destroy(string $id)
     {
         //
+    }
+
+    public function finish(Request $request) {
+        return redirect()->route('spp.transaction.index')->with('success', 'Pembayaran berhasil!');
+    }
+
+    public function unfinish(Request $request) {
+        return redirect()->route('spp.transaction.index')->with('error', 'Pembayaran belum selesai.');
+    }
+
+    public function error(Request $request) {
+        return redirect()->route('spp.transaction.index')->with('error', 'Terjadi kesalahan pada pembayaran.');
+    }
+
+    public function notification(Request $request)
+    {
+        $notif = new \Midtrans\Notification();
+
+        $transaction = $notif->transaction_status;
+        $type        = $notif->payment_type;
+        $orderId     = $notif->order_id;
+        $fraud       = $notif->fraud_status;
+
+        $spp = Transaction::where('id', $orderId)->first();
+
+        if (!$spp) {
+            return response()->json(['message' => 'Transaction not found'], 404);
+        }
+
+        if ($transaction == 'capture') {
+            if ($fraud == 'challenge') {
+                $spp->update(['status' => 'Pending']);
+            } else if ($fraud == 'accept') {
+                $spp->update(['status' => 'Lunas']);
+            }
+        } else if ($transaction == 'settlement') {
+            $spp->update(['status' => 'Lunas']);
+        } else if ($transaction == 'pending') {
+            $spp->update(['status' => 'Pending']);
+        } else if ($transaction == 'deny') {
+            $spp->update(['status' => 'Dibatalkan']);
+        } else if ($transaction == 'expire') {
+            $spp->update(['status' => 'Expired']);
+        } else if ($transaction == 'cancel') {
+            $spp->update(['status' => 'Dibatalkan']);
+        }
+
+        return response()->json(['message' => 'OK']);
     }
 }

@@ -46,10 +46,14 @@ class SiswaSeeder extends Seeder
             $class = $classes->random(); // pilih kelas random
             $parentName = $parents[array_rand($parents)];
 
+            // Generate NISN (tahun ajaran + 6 angka random)
+            $nisn = preg_replace('/[^0-9]/', '', $academicYear->year) 
+                . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
             User::create([
                 'id'               => Str::uuid(),
                 'role_id'          => $siswaRole->id,
-                'class_id'       => $class->id, // relasi ke kelas
+                'class_id'         => $class->id,
                 'first_name'       => $student['first_name'],
                 'last_name'        => $student['last_name'],
                 'gender'           => $index % 2 === 0 ? 'Pria' : 'Wanita',
@@ -58,8 +62,9 @@ class SiswaSeeder extends Seeder
                 'email'            => strtolower($student['first_name']) . '@gmail.com',
                 'password'         => Hash::make('password'),
                 'academic_year_id' => $academicYear->id,
+                'nisn'             => $nisn, // ✅ NISN otomatis
                 'parent_status'    => $student['parent_status'],
-                'parent_name'      => $parentName, // tambahan nama orang tua
+                'parent_name'      => $parentName,
             ]);
             // ✅ Observer akan buat 12 transaksi otomatis
         }

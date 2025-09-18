@@ -108,10 +108,6 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/edit/{id}', 'edit')->name('spp.transaction.edit');
                 Route::patch('/update/{id}', 'update')->name('spp.transaction.update');
                 Route::delete('/destroy/${id}', 'destroy')->name('spp.transaction.destroy');
-
-                Route::get('/finish', 'finish')->name('spp.transaction.finish');
-                Route::get('/unfinish', 'unfinish')->name('spp.transaction.unfinish');
-                Route::get('/erorr', 'erorr')->name('spp.transaction.erorr');
                 Route::get('/midtrans/notification', 'notification')->name('spp.transaction.midtransNotification');
             });
         });  

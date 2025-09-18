@@ -59,59 +59,79 @@ class TransactionController extends Controller {
      */
     public function store(Request $request)
     {
+        $request->validate([
+            'transaction_id' => 'required|exists:transactions,id',
+        ]);
+
         try {
-            $data = $request->all();
+            // 🔑 Set Midtrans config
+            \Midtrans\Config::$serverKey    = config('midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('midtrans.is_production', false);
+            \Midtrans\Config::$isSanitized  = config('midtrans.is_sanitized', true);
+            \Midtrans\Config::$is3ds        = config('midtrans.is_3ds', true);
 
-            \Midtrans\Config::$serverKey = config('midtrans.server_key');
-            \Midtrans\Config::$isProduction = config('midtrans.is_production');
-            \Midtrans\Config::$isSanitized = config('midtrans.is_sanitized');
-            \Midtrans\Config::$is3ds = config('midtrans.is_3ds');
+            $transaction = Transaction::findOrFail($request->transaction_id);
 
-            $transaction = Transaction::find($data['transaction_id']);
-
-            if (!$transaction) {
-                return response()->json(['message' => 'Transaction not found'], 404);
+            if ($transaction->price <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Harga transaksi tidak valid.',
+                ], 422);
             }
 
-            // Set status pending dan set expired_at = now + 2.5 menit (150 detik)
+            // Expired 150 detik
             $transaction->update([
                 'type'       => "Payment Gateway",
                 'status'     => "Pending",
-                'expired_at' => Carbon::now()->addSeconds(150),
+                'expired_at' => now()->addSeconds(150),
             ]);
 
-            // Midtrans snap token
+            // Buat order_id unik
+            $orderId = $transaction->id . '-' . time();
+
+            // Snap params
             $snapParams = [
                 'transaction_details' => [
-                    'order_id'     => rand(), // sebaiknya pakai id transaksi biar konsisten
+                    'order_id'     => $orderId,
                     'gross_amount' => $transaction->price,
                 ],
-                // optional: sinkronkan expired time
                 'expiry' => [
-                    'start_time' => Carbon::now()->format('Y-m-d H:i:s O'),
+                    'start_time' => now()->format('Y-m-d H:i:s O'),
                     'unit'       => 'seconds',
                     'duration'   => 150,
                 ],
-                // 👇 Tambahin callback redirect URL dari config/env
                 'callbacks' => [
-                    'finish'   => config('midtrans.finish_redirect_url'),
-                    'unfinish' => config('midtrans.unfinish_redirect_url'),
-                    'error'    => config('midtrans.error_redirect_url'),
-                ],
+                    'finish'   => url("/transactions/{$transaction->id}?status=finish"),
+                    'unfinish' => url("/transactions/{$transaction->id}?status=unfinish"),
+                    'error'    => url("/transactions/{$transaction->id}?status=error"),
+                ]
             ];
 
-            $snapToken = \Midtrans\Snap::getSnapToken($snapParams);
+            $snapTransaction = \Midtrans\Snap::createTransaction($snapParams);
 
-            $transaction->snap_token = $snapToken;
-            $transaction->save();
+            $transaction->update([
+                'snap_token' => $snapTransaction->token,
+                'order_id'   => $orderId,
+            ]);
 
-            return response()->json($transaction);
-        }  catch (ValidationException $e) {
-            return response()->json($e->errors(), 500);
+            return response()->json([
+                'success'      => true,
+                'transaction'  => $transaction,
+                'snap_token'   => $snapTransaction->token,
+                'redirect_url' => $snapTransaction->redirect_url,
+            ]);
+
         } catch (\Throwable $th) {
-            return response()->json($th->getMessage(), 500);
+            \Log::error('Midtrans Error: ' . $th->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat membuat transaksi.',
+                'error'   => $th->getMessage(),
+            ], 500);
         }
     }
+
+
 
     /**
      * Store a manually created payment (manual verification).
@@ -164,6 +184,8 @@ class TransactionController extends Controller {
     {
         try {
             $year = urldecode($request->query("year"));
+            $status = $request->query('status'); // finish/unfinish/error/null
+            
 
             $student = User::selectRaw("users.*, classes.name AS class_name, academic_years.year")
                 ->join('classes', 'classes.id', '=', 'users.class_id')
@@ -189,7 +211,7 @@ class TransactionController extends Controller {
                 $x['no'] = $key + 1;
             }
 
-            return view("pages.transaction.detail", compact('data', 'student', 'academicYears', 'year'));
+            return view("pages.transaction.detail", compact('data', 'student', 'academicYears', 'year','status'));
         } catch (\Throwable $th) {
             return redirect()->route('spp.transaction.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
         }
@@ -206,7 +228,7 @@ class TransactionController extends Controller {
             // update status transaksi
             $transaction->update([
                 'status' => "OK",
-                'expired_at' => null, // clear expired when paid
+                'expired_at' => null, // clear expired when paid 
             ]);
             
             // ambil nama siswa
@@ -229,7 +251,7 @@ class TransactionController extends Controller {
                 'amount'         => $transaction->price,
                 'type'           => $transaction->type
             ]);
-            
+             
             return response()->json([
                 'status'  => "OK",
                 'message' => "Transaksi berhasil diupdate dan dicatat ke income",
@@ -259,16 +281,25 @@ class TransactionController extends Controller {
         //
     }
 
-    public function finish(Request $request) {
-        return redirect()->route('spp.transaction.index')->with('success', 'Pembayaran berhasil!');
+    public function finish(Request $request)
+    {
+        return view('transactions.finish', [
+            'order_id' => $request->query('order_id'),
+        ]);
     }
 
-    public function unfinish(Request $request) {
-        return redirect()->route('spp.transaction.index')->with('error', 'Pembayaran belum selesai.');
+    public function unfinish(Request $request)
+    {
+        return view('transactions.unfinish', [
+            'order_id' => $request->query('order_id'),
+        ]);
     }
 
-    public function error(Request $request) {
-        return redirect()->route('spp.transaction.index')->with('error', 'Terjadi kesalahan pada pembayaran.');
+    public function error(Request $request)
+    {
+        return view('transactions.error', [
+            'order_id' => $request->query('order_id'),
+        ]);
     }
 
     public function notification(Request $request)

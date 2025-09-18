@@ -18,6 +18,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css" />
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
     <style>
+        #main-content {
+            padding-top: 2px !important; /* atur sesuai kebutuhan */
+            margin-top: 0 !important;
+        }
+        
         .btn-outline-info:hover {
             color: white !important;
         }
@@ -61,19 +66,21 @@
 
             <div id="main-content">
                 <div class="page-heading">
-                    <div class="page-title mb-2"> <!-- mb-4 diganti mb-2 supaya lebih rapat -->
+                    <div class="page-title py-1 mb-1"> <!-- py-1 untuk rapat, mb-1 agar jarak bawah kecil -->
                         <div class="row">
                             <div class="col-12 col-md-6 order-md-1 order-last">
-                                <h3 class="mb-1">@yield('title')</h3> <!-- bisa diatur mb-0 atau mb-1 -->
+                                <h5 class="mb-0">@yield('title')</h5> <!-- lebih kecil & rapat -->
                             </div>
                             <div class="col-12 col-md-6 order-md-2 order-first">
                                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
-                                    <ol class="breadcrumb mb-0"> <!-- mb-0 supaya rapat -->
+                                    <ol class="breadcrumb breadcrumb-sm mb-0"> <!-- kecil & rapat -->
                                         @foreach($breadcrumbs as $breadcrumb)
                                             @if($breadcrumb['url'])
-                                                <li class="breadcrumb-item"><a href="{{ $breadcrumb['url'] }}">{{ $breadcrumb['label'] }}</a></li>
+                                                <li class="breadcrumb-item small">
+                                                    <a href="{{ $breadcrumb['url'] }}">{{ $breadcrumb['label'] }}</a>
+                                                </li>
                                             @else
-                                                <li class="breadcrumb-item active">{{ $breadcrumb['label'] }}</li>
+                                                <li class="breadcrumb-item active small">{{ $breadcrumb['label'] }}</li>
                                             @endif
                                         @endforeach
                                     </ol>
@@ -82,13 +89,14 @@
                         </div>
                     </div>
 
-                    <section class="section pt-2"> <!-- pt-2 atau pt-1 untuk rapatkan jarak atas -->
+                    <section class="section pt-1">
                         <div class="card">
                             @yield('content')
                         </div>
                     </section>
                 </div>
             </div>
+
 
             @include('components.footer')
         </div>

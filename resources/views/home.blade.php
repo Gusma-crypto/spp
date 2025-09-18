@@ -156,15 +156,24 @@
             </div>
         </div>
     </div>
-@endif
+@endif 
 @if($role->name === 'Siswa')
 <div class="row mb-5">
      {{-- Ringkasan Keuangan --}}
+     <div class="card-header text-center">
+        <hr class="my-3">
+        <h4>
+             Semester {{ $currentSemester }} 
+            {{ \Carbon\Carbon::createFromDate($currentYear, 1)->format('F Y') }}
+        </h4>
+        <hr class="my-3">
+    </div>
     <div class="row mb-4 mx-2 ">
         <div class="col-md-4">
             <div class="card text-bg-primary shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Total Tagihan</h5>
+                    <hr class="my-3">
                     <p class="fs-4 fw-bold">Rp {{ number_format($totalTagihan, 0, ',', '.') }}</p>
                 </div>
             </div>
@@ -173,6 +182,7 @@
             <div class="card text-bg-success shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Sudah Dibayar</h5>
+                    <hr class="my-3">
                     <p class="fs-4 fw-bold">Rp {{ number_format($totalDibayar, 0, ',', '.') }}</p>
                 </div>
             </div>
@@ -181,6 +191,7 @@
             <div class="card text-bg-danger shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Sisa Tagihan</h5>
+                    <hr class="my-3">
                     <p class="fs-4 fw-bold">Rp {{ number_format($sisaTagihan, 0, ',', '.') }}</p>
                 </div>
             </div>

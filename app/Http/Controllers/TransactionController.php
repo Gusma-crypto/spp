@@ -176,7 +176,7 @@ class TransactionController extends Controller {
                 ->where('status', 'Pending')
                 ->whereNotNull('expired_at')
                 ->where('expired_at', '<', Carbon::now())
-                ->update(['status' => 'Expired']);
+                ->update(['status' => 'Belum Lunas']);
 
             $data = Transaction::select("*")
                 ->where('student_id', '=', $id)
@@ -299,7 +299,7 @@ class TransactionController extends Controller {
         } else if ($transaction == 'deny') {
             $spp->update(['status' => 'Dibatalkan']);
         } else if ($transaction == 'expire') {
-            $spp->update(['status' => 'Expired']);
+            $spp->update(['status' => 'Belum Lunas']);
         } else if ($transaction == 'cancel') {
             $spp->update(['status' => 'Dibatalkan']);
         }

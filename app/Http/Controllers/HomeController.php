@@ -43,6 +43,13 @@ class HomeController extends Controller
         $currentYear  = now()->year;
         $currentMonth = now()->month;
 
+        //semester
+        if ($currentMonth >= 7 && $currentMonth <= 12) {
+            $currentSemester = 1; // Semester 1
+        } else {
+            $currentSemester = 2; // Semester 2
+        }
+
         // ==================== FILTER TRANSAKSI ====================
         $query = Transaction::with(['student.mclass'])
             ->whereYear('date', $currentYear)
@@ -73,16 +80,8 @@ class HomeController extends Controller
 
         $kelasList = Mclass::all();
 
-        // ===== Grafik Lunas vs Belum Lunas per Tahun Ajaran =====
-        $academicYear = AcademicYear::latest()->first();
-        
-        if (!$academicYear) {
-            // solusi cepat: kasih default tahun berjalan
-            $currentYear = now()->year;
-            $trxQuery = Transaction::where('year', $currentYear);
-        } else {
-            $trxQuery = Transaction::where('year', $academicYear->year);
-        }
+        // ===== Grafik Lunas vs Belum Lunas per Tahun Aktif =====
+        $trxQuery = Transaction::whereYear('date', $currentYear);
 
         if ($user->role->name === 'Siswa') {
             $trxQuery->where('student_id', $user->id);
@@ -94,8 +93,8 @@ class HomeController extends Controller
         $paymentStatusLabels = ['Lunas', 'Belum Lunas'];
         $paymentStatusData   = [$lunasCount, $belumCount];
         // ========================================================
-        
-        // ===== Tambahan: Daftar Bulan Lunas / Belum Lunas + Total =====
+
+        // ===== Daftar Bulan Lunas / Belum Lunas + Total =====
         $unpaidMonths = collect();
         $paidMonths   = collect();
         $totalTagihan = $totalDibayar = $sisaTagihan = 0;
@@ -103,7 +102,7 @@ class HomeController extends Controller
 
         if ($user->role->name === 'Siswa') {
             $allTransactions = Transaction::where('student_id', $user->id)
-                ->where('year', $academicYear->year) // cocok dengan format "2025/2026"
+                ->whereYear('date', $currentYear) // ✅ hanya tahun aktif
                 ->get();
 
             $allMonths = $allTransactions->groupBy(fn($trx) => 
@@ -123,7 +122,7 @@ class HomeController extends Controller
             $totalDibayar = $allTransactions->where('status', 'OK')->sum('price');
             $sisaTagihan  = $totalTagihan - $totalDibayar;
         }
-        // ====================================================================
+        // =====================================================
 
         return view('home', compact(
             'kepalaSekolah',
@@ -134,6 +133,7 @@ class HomeController extends Controller
             'incomeData',
             'currentMonth',
             'currentYear',
+            'currentSemester',
             'kelasList',
             'paymentStatusLabels',
             'paymentStatusData',
@@ -143,13 +143,8 @@ class HomeController extends Controller
             'totalDibayar',
             'sisaTagihan',
             'allTransactions',
-            
         ));
     }
-
-
-
-
 
     public function unpaidExport(Request $request)
     {
@@ -162,54 +157,4 @@ class HomeController extends Controller
             'siswa-belum-lunas.xlsx'
         );
     }
-
-    // public function index()
-    // {
-    //     // Kepala Sekolah
-    //     $kepalaSekolah = User::join('roles', 'users.role_id', '=', 'roles.id')
-    //         ->where('roles.name', 'Kepala Sekolah')
-    //         ->first();
-
-    //     // Jumlah siswa aktif
-    //     $siswa = User::join('roles', 'users.role_id', '=', 'roles.id')
-    //         ->where('roles.name', 'Siswa')
-    //         ->count();
-
-    //     // Jumlah pengguna aktif (selain Siswa & Super Admin)
-    //     $pengguna = User::join('roles', 'users.role_id', '=', 'roles.id')
-    //         ->whereNotIn('roles.name', ['Siswa', 'Super Admin'])
-    //         ->count();
-
-    //     // Bulan ini
-    //     $currentYear = Carbon::now()->year;
-    //     $currentMonth = Carbon::now()->month;
-
-    //     // Data siswa belum lunas bulan ini
-    //     $unpaidTransactions = Transaction::where('year', $currentYear)
-    //         ->whereMonth('date', $currentMonth)
-    //         ->where('status', '!=', 'OK')
-    //         ->with(['student', 'student.mclass'])
-    //         ->get();
-
-    //     // Data pemasukan bulan ini dari tabel income
-    //     $incomeRecords = Income::whereYear('date', $currentYear)
-    //         ->whereMonth('date', $currentMonth)
-    //         ->orderBy('date')
-    //         ->get();
-
-    //     // Labels & data untuk Chart.js
-    //     $incomeLabels = $incomeRecords->map(fn($r) => Carbon::parse($r->date)->format('d'))->toArray();
-    //     $incomeData = $incomeRecords->map(fn($r) => $r->total_income)->toArray();
-
-    //     return view('home', compact(
-    //         'kepalaSekolah',
-    //         'siswa',
-    //         'pengguna',
-    //         'unpaidTransactions',
-    //         'incomeLabels',
-    //         'incomeData',
-    //         'currentMonth',
-    //         'currentYear'
-    //     ));
-    // }
 }

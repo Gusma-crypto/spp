@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers; 
 
 use App\Exports\ExpenseExport;
 use App\Exports\IncomeExport;
@@ -139,34 +139,57 @@ class ReportController extends Controller
         }
     }
 
-    public function exportClass(Request $request) {
+    public function exportClass(Request $request)
+    {
         try {
             $classId = $request->query('class_id');
-            $academicYearId = $request->query('academic_year_id');
 
-            $class = MClass::find($classId);
-            $academicYear = AcademicYear::find($academicYearId);
+            // === Cek Kelas ===
+            if ($classId === 'all') {
+                $className = 'Semua Kelas';
+            } else {
+                $class = MClass::find($classId);
+                if (!$class) {
+                    return redirect()->route('report.spp.index')->with('error', 'Kelas tidak ditemukan.');
+                }
+                $className = $class->name;
+            }
 
-            $sanitizedYear = str_replace(['/', '\\'], '-', $academicYear->year);
-            $filename = 'Laporan Transaksi SPP Kelas ' . $class->name . ' Tahun ' . $sanitizedYear . '.xlsx';
+            // === Nama File ===
+            $filename = 'Laporan Transaksi SPP ' . $className . '.xlsx';
 
-            return Excel::download(new SppPerKelasExport($classId, $academicYearId), $filename);
+            // === Download ===
+            return Excel::download(new SppPerKelasExport($classId), $filename);
+
         } catch (\Throwable $th) {
-            return redirect()->route('report.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
+            return redirect()->route('report.spp.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
         }
     }
 
-    public function exportYear(string $academic_year_id) {
+
+    public function exportYear($yearId)
+    {
         try {
+            if ($yearId === 'all') {
+                $filename = "Laporan Transaksi SPP - Semua.xlsx";
+                return Excel::download(new SppPerTahunExport(null), $filename);
+            }
 
-            $academicYear = AcademicYear::find($academic_year_id);
+            $year = AcademicYear::find($yearId);
+            if (!$year) {
+                return redirect()->route('report.spp.index')
+                    ->with('error', 'Tahun ajaran tidak ditemukan.');
+            }
 
-            $sanitizedYear = str_replace(['/', '\\'], '-', $academicYear->year);
-            $filename = 'Laporan Transaksi SPP Tahun ' . $sanitizedYear . '.xlsx';
+            // --- perbaikan disini ---
+            $sanitizedYear = str_replace(['/', '\\'], '-', $year->year);
+            $filename = "Laporan Transaksi SPP - {$sanitizedYear}.xlsx";
 
-            return Excel::download(new SppPerTahunExport($academic_year_id), $filename);
+            return Excel::download(new SppPerTahunExport($yearId), $filename);
+
         } catch (\Throwable $th) {
-            return redirect()->route('report.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
+            return redirect()->route('report.spp.index')
+                ->with('error', 'Terjadi kesalahan saat export per tahun.');
         }
     }
 
@@ -300,71 +323,83 @@ class ReportController extends Controller
      *repor siswa belum lunas
      */
      // Laporan Belum Lunas
-     // Laporan Belum Lunas
-    public function unpaidReport(Request $request)
+   public function unpaidReport(Request $request)
     {
         try {
             $academicYears = AcademicYear::all();
-            $selectedYear = $request->get('year', $academicYears->first()->year ?? null);
+
+            // Ambil tahun sekarang, misal 2025
+            $currentYear = date('Y');
+
+            // Cari tahun akademik yg mencakup tahun sekarang
+            $activeAcademicYear = AcademicYear::where('year', 'LIKE', "%$currentYear%")->first();
+
+            // Kalau tidak ada, fallback ke tahun pertama di DB
+            $selectedYear = $request->get('year', $activeAcademicYear->year ?? $academicYears->first()->year ?? null);
 
             $monthlyReport = [];
             $semesterReport = [];
 
-            foreach ($academicYears as $academicYear) {
+            $selectedAcademicYear = AcademicYear::where('year', $selectedYear)->first();
+            if (!$selectedAcademicYear) {
+                return redirect()->route('report.index')->with('error', 'Tahun akademik tidak ditemukan.');
+            }
 
-                $monthlyReport[$academicYear->year] = [];
-                $semesterReport[$academicYear->year] = [];
+            // Ambil transaksi BELUM LUNAS (gunakan kolom 'year' di transactions)
+            $transactions = \App\Models\Transaction::select(
+                    \DB::raw('MONTH(date) as month'),
+                    \DB::raw('COUNT(DISTINCT student_id) as total_unpaid'),
+                    \DB::raw('SUM(price) as total_due')
+                )
+                ->where('year', $selectedAcademicYear->year) // pakai kolom 'year'
+                ->whereIn('status', ['Belum Lunas', 'Pending','Expired']) // pastikan sesuai status di DB
+                ->whereHas('student', function ($q) {
+                    $q->where('parent_name', '!=', 'Yatim Piatu'); // ✅ exclude yatim piatu
+                })
+                ->groupBy(\DB::raw('MONTH(date)'))
+                ->get()
+                ->keyBy('month');
 
-                // Ambil transaksi belum lunas berdasarkan year
-                $transactions = \App\Models\Transaction::select(
-                        \DB::raw('MONTH(date) as month'),
-                        \DB::raw('COUNT(id) as total_unpaid'),
-                        \DB::raw('SUM(price) as total_due')
-                    )
-                    ->where('year', $academicYear->year)
-                    ->where('status', '!=', 'OK')
-                    ->groupBy(\DB::raw('MONTH(date)'))
-                    ->get()
-                    ->keyBy('month');
-
-                // Bulanan (Juli - Desember)
-                for ($month = 7; $month <= 12; $month++) {
-                    $monthlyReport[$academicYear->year][$month] = [
-                        'total_unpaid' => $transactions[$month]->total_unpaid ?? 0,
-                        'total_due' => $transactions[$month]->total_due ?? 0
-                    ];
-                }
-                // Bulanan (Januari - Juni)
-                for ($month = 1; $month <= 6; $month++) {
-                    $monthlyReport[$academicYear->year][$month] = [
-                        'total_unpaid' => $transactions[$month]->total_unpaid ?? 0,
-                        'total_due' => $transactions[$month]->total_due ?? 0
-                    ];
-                }
-
-                // Semester
-                $semester1 = $transactions->filter(fn($t) => $t->month >= 7 && $t->month <= 12);
-                $semester2 = $transactions->filter(fn($t) => $t->month >= 1 && $t->month <= 6);
-
-                $semesterReport[$academicYear->year][1] = [
-                    'total_unpaid' => $semester1->sum('total_unpaid'),
-                    'total_due' => $semester1->sum('total_due')
-                ];
-
-                $semesterReport[$academicYear->year][2] = [
-                    'total_unpaid' => $semester2->sum('total_unpaid'),
-                    'total_due' => $semester2->sum('total_due')
+            // Bulanan (Juli - Desember)
+            for ($month = 7; $month <= 12; $month++) {
+                $monthlyReport[$selectedYear][$month] = [
+                    'total_unpaid' => $transactions[$month]->total_unpaid ?? 0,
+                    'total_due' => $transactions[$month]->total_due ?? 0
                 ];
             }
+
+            // Bulanan (Januari - Juni)
+            for ($month = 1; $month <= 6; $month++) {
+                $monthlyReport[$selectedYear][$month] = [
+                    'total_unpaid' => $transactions[$month]->total_unpaid ?? 0,
+                    'total_due' => $transactions[$month]->total_due ?? 0
+                ];
+            }
+
+            // Semester
+            $semester1 = $transactions->filter(fn($t) => $t->month >= 7 && $t->month <= 12);
+            $semester2 = $transactions->filter(fn($t) => $t->month >= 1 && $t->month <= 6);
+
+            $semesterReport[$selectedYear][1] = [
+                'total_unpaid' => $semester1->sum('total_unpaid'),
+                'total_due' => $semester1->sum('total_due')
+            ];
+
+            $semesterReport[$selectedYear][2] = [
+                'total_unpaid' => $semester2->sum('total_unpaid'),
+                'total_due' => $semester2->sum('total_due')
+            ];
 
             return view('pages.report.unpaid', compact(
                 'academicYears', 'selectedYear', 'monthlyReport', 'semesterReport'
             ));
 
         } catch (\Throwable $th) {
-            return redirect()->route('report.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
+            dd($th->getMessage(), $th->getTraceAsString()); // biar jelas error aslinya
         }
-    } 
+    }
+
+
 
     public function unpaidDetails(Request $request)
     {
@@ -374,12 +409,14 @@ class ReportController extends Controller
         // Ambil transaksi belum lunas beserta relasi student dan kelas
         $transactions = \App\Models\Transaction::where('year', $year)
             ->whereMonth('date', $month)
-            ->where('status', '!=', 'OK')
-            ->with(['student', 'student.mclass']) // relasi kelas sesuai nama baru
+            ->whereIn('status', ['Belum Lunas', 'Pending', 'Expired'])
+            ->whereHas('student', function ($q) {
+                $q->where('parent_name', '!=', 'Yatim Piatu'); // ✅ exclude yatim piatu
+            })
+            ->with(['student', 'student.mclass'])
             ->get();
 
         return view('pages.report.unpaid_details', compact('transactions', 'year', 'month'));
     }
    
 }
-

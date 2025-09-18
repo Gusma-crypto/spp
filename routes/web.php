@@ -83,7 +83,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/edit/{id}', 'edit')->name('master.user.edit');
                 Route::patch('/update/{id}', 'update')->name('master.user.update');
                 Route::delete('/destroy/${id}', 'destroy')->name('master.user.destroy');
-            });
+            }); 
         });
  
         Route::prefix('data-siswa')->group(function () {
@@ -120,6 +120,11 @@ Route::middleware(['auth'])->group(function () {
             Route::controller(ReportController::class)->group(function () {
                 Route::get('/spp', 'index')->name('report.spp.index');
                 Route::get('/spp/detail/{id}', 'laporanSPPDetail')->name('report.spp.detail');
+
+                // Export transactions SPP
+                Route::get('/export/class', 'exportClass')->name('report.export.class');
+                Route::get('/export/year/{year_id}', 'exportYear')->name('report.export.year');
+
                 Route::get('/pemasukan', 'indexIncome')->name('report.income.index');
                 Route::get('/export/income', 'exportIncomePdf')->name('report.export.incomepdf');
                 Route::post('/export/income-rkp-excel', 'exportRkpExcel')->name('report.export.incomeexcel');
@@ -127,8 +132,8 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/pemasukan/detail/{date}', 'detailIncome')->name('report.income.detail');
                 Route::get('/pengeluaran', 'IndexExpense')->name('report.expense.index');
                 Route::get('/export/student/{student}', 'exportStudent')->name('report.export.student');
-                Route::get('/export/class', 'exportClass')->name('report.export.class');
-                Route::get('/export/year/{year}', 'exportYear')->name('report.export.year');
+                // Route::get('/export/class', 'exportClass')->name('report.export.class');
+                // Route::get('/export/year/{year}', 'exportYear')->name('report.export.year');
                 Route::post('/export/income', 'exportIncome')->name('report.export.income');
                 Route::post('/export/incomePdf', 'exportIncomePdf')->name('report.export.incomePdf');
                 Route::post('/export/expense', 'exportExpense')->name('report.export.expense');
@@ -137,5 +142,5 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/unpaid/details', 'unpaidDetails')->name('report.unpaid.details');
             }); 
         });
-    });
+    }); 
 });

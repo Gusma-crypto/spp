@@ -2,7 +2,6 @@
 
 namespace App\Exports;
 
-use App\Models\AcademicYear;
 use App\Models\MClass;
 use App\Models\Transaction;
 use App\Models\User;
@@ -11,34 +10,28 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyles, WithCustomStartCell, ShouldAutoSize
 {
     protected $classId;
-    protected $academicYearId;
 
-    public function __construct($classId, $academicYearId)
+    public function __construct($classId)
     {
         $this->classId = $classId;
-        $this->academicYearId = $academicYearId;
-    }
-
-    protected function classes()
-    {
-        return MClass::findOrFail($this->classId);
-    }
-
-    protected function academicYear()
-    {
-        return AcademicYear::findOrFail($this->academicYearId);
     }
 
     public function title(): string
     {
-        return 'SPP ' . $this->classes()->name;
+        if ($this->classId === 'all') {
+            return 'SPP Semua Kelas';
+        }
+
+        $class = MClass::find($this->classId);
+        return $class ? 'SPP ' . $class->name : 'SPP (Kelas Tidak Ditemukan)';
     }
 
     public function startCell(): string
@@ -48,11 +41,8 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
 
     public function headings(): array
     {
-        $student = User::where('class_id', $this->classId)
-            ->where('academic_year_id', $this->academicYearId)
-            ->get();
-
-        $studentIds = $student->pluck('id');
+        $students = $this->getStudents();
+        $studentIds = $students->pluck('id');
 
         $months = Transaction::whereIn('student_id', $studentIds)
             ->pluck('date')
@@ -63,28 +53,22 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
             });
 
         return [
-            ['Kelas', $this->classes()->name ?? '-'],
-            ['Tahun Ajaran', $this->academicYear()->year],
+            ['Kelas', $this->classId === 'all' ? 'Semua Kelas' : MClass::find($this->classId)->name],
             [],
-            array_merge(['No', 'NISN', 'Nama Siswa'], $months->toArray())
+            array_merge(['No', 'NISN', 'Nama Siswa', 'Kelas', 'Tahun Ajaran'], $months->toArray())
         ];
     }
 
     public function array(): array
     {
-        $students = User::where('class_id', $this->classId)
-            ->where('academic_year_id', $this->academicYearId)
-            ->get();
-
+        $students = $this->getStudents();
         $studentIds = $students->pluck('id');
 
         $months = Transaction::whereIn('student_id', $studentIds)
             ->pluck('date')
             ->unique()
             ->sort()
-            ->map(function ($date) {
-                return Carbon::parse($date)->format('Y-m');
-            })
+            ->map(fn ($date) => Carbon::parse($date)->format('Y-m'))
             ->values();
 
         $data = [];
@@ -94,6 +78,8 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
                 $index + 1,
                 $student->nisn,
                 $student->first_name . ' ' . $student->last_name,
+                $student->class_name,
+                $student->year
             ];
 
             foreach ($months as $month) {
@@ -116,15 +102,13 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
 
     public function styles(Worksheet $sheet)
     {
-        $studentCount = User::where('class_id', $this->classId)
-            ->where('academic_year_id', $this->academicYearId)
-            ->count();
+        $studentCount = $this->getStudents()->count();
+        $columnCount = 5 + $this->getMonthCount(); // ada tambahan kolom Tahun Ajaran
+        $endColumn = Coordinate::stringFromColumnIndex($columnCount);
 
-        $endColumn = chr(67 + $this->getMonthCount());
+        $sheet->getStyle('A1:B1')->getFont()->setBold(true);
 
-        $sheet->getStyle('A1:B3')->getFont()->setBold(true);
-
-        $sheet->getStyle("A4:{$endColumn}4")->applyFromArray([
+        $sheet->getStyle("A3:{$endColumn}3")->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
@@ -135,9 +119,9 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
             ],
         ]);
 
-        $sheet->getStyle("A4:{$endColumn}4")->getFont()->setBold(true);
+        $sheet->getStyle("A3:{$endColumn}3")->getFont()->setBold(true);
 
-        $startRow = 5;
+        $startRow = 4;
         $endRow = $startRow + $studentCount - 1;
 
         return [
@@ -151,11 +135,22 @@ class SppPerKelasExport implements FromArray, WithHeadings, WithTitle, WithStyle
         ];
     }
 
+    private function getStudents()
+    {
+        $query = User::selectRaw('users.*, classes.name as class_name, academic_years.year')
+            ->join('classes', 'classes.id', '=', 'users.class_id')
+            ->join('academic_years', 'academic_years.id', '=', 'users.academic_year_id');
+
+        if ($this->classId !== 'all') {
+            $query->where('users.class_id', $this->classId);
+        }
+
+        return $query->get();
+    }
+
     private function getMonthCount()
     {
-        $studentIds = User::where('class_id', $this->classId)
-            ->where('academic_year_id', $this->academicYearId)
-            ->pluck('id');
+        $studentIds = $this->getStudents()->pluck('id');
 
         return Transaction::whereIn('student_id', $studentIds)
             ->pluck('date')

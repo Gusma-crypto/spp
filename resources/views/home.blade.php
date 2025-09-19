@@ -18,7 +18,7 @@
      alt="logo-sumut" class="img-fluid" style="width:150px; height:auto;">
 
     </div>
-
+@if($role->name === 'Super Admin' || $role->name === 'Kepala Sekolah' || $role->name === 'Bendahara')
     {{-- Statistik Kartu --}}
     <div class="row g-3 mb-3 mx-2">
         {{-- Nama Sekolah --}}
@@ -73,7 +73,7 @@
     </div>
 
 
-@if($role->name === 'Super Admin' || $role->name === 'Kepala Sekolah' || $role->name === 'Bendahara')
+
     {{-- Tabel Siswa Belum Lunas --}}
     <div class="row mb-5">
         <div class="col-12">

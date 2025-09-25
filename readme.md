@@ -30,3 +30,6 @@ config/mitrand:
 
 jalankan schedjule:
 php artisan schedule:work
+
+NGROK
+.\ngrok.exe config add-authtoken 32uLao6sVjTWm4axjkVdGwMYjUc_23hZQq7p8YLS4W9VzT6Gy

@@ -55,86 +55,63 @@ class TransactionController extends Controller {
     }
 
     /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'transaction_id' => 'required|exists:transactions,id',
-        ]);
-
         try {
-            // 🔑 Set Midtrans config
-            \Midtrans\Config::$serverKey    = config('midtrans.server_key');
-            \Midtrans\Config::$isProduction = config('midtrans.is_production', false);
-            \Midtrans\Config::$isSanitized  = config('midtrans.is_sanitized', true);
-            \Midtrans\Config::$is3ds        = config('midtrans.is_3ds', true);
+            $data = $request->all();
 
-            $transaction = Transaction::findOrFail($request->transaction_id);
+            \Midtrans\Config::$serverKey = config('midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('midtrans.is_production');
+            \Midtrans\Config::$isSanitized = config('midtrans.is_sanitized');
+            \Midtrans\Config::$is3ds = config('midtrans.is_3ds');
 
-            if ($transaction->price <= 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Harga transaksi tidak valid.',
-                ], 422);
-            }
+            $transaction = Transaction::find($data['transaction_id']);
 
-            // Expired 150 detik
-            $transaction->update([
-                'type'       => "Payment Gateway",
-                'status'     => "Pending",
-                'expired_at' => now()->addSeconds(150),
-            ]);
-
-            // Buat order_id unik
-            $orderId = $transaction->id . '-' . time();
-
-            // Snap params
-            $snapParams = [
-                'transaction_details' => [
-                    'order_id'     => $orderId,
-                    'gross_amount' => $transaction->price,
-                ],
-                'expiry' => [
-                    'start_time' => now()->format('Y-m-d H:i:s O'),
-                    'unit'       => 'seconds',
-                    'duration'   => 150,
-                ],
-                'callbacks' => [
-                    'finish'   => url("/transactions/{$transaction->id}?status=finish"),
-                    'unfinish' => url("/transactions/{$transaction->id}?status=unfinish"),
-                    'error'    => url("/transactions/{$transaction->id}?status=error"),
-                ]
-            ];
-
-            $snapTransaction = \Midtrans\Snap::createTransaction($snapParams);
+            // Set timeout to 2.5 minutes from now
+            $timeout = Carbon::now()->addMinutes(2.5);
 
             $transaction->update([
-                'snap_token' => $snapTransaction->token,
-                'order_id'   => $orderId,
+                'type'          => "Payment Gateway",
+                'status'        => "Pending",
+                'expired_at'    => $timeout
             ]);
 
-            return response()->json([
-                'success'      => true,
-                'transaction'  => $transaction,
-                'snap_token'   => $snapTransaction->token,
-                'redirect_url' => $snapTransaction->redirect_url,
-            ]);
+            $snapParams = array(
+                'transaction_details' => array(
+                    'order_id'      => rand(),
+                    'gross_amount'  => $transaction->price,
+                ),
+                'expiry' => array(
+                    'unit'       => 'second',
+                    'duration'   => 150, // 150 detik = 2.5 menit
+                )
+            );
 
+            $snapToken = \Midtrans\Snap::getSnapToken($snapParams);
+
+            $transaction->snap_token = $snapToken;
+            $transaction->save();
+
+            return response()->json($transaction);
+        }  catch (ValidationException $e) {
+            return response()->json($e->errors(), 500);
         } catch (\Throwable $th) {
-            \Log::error('Midtrans Error: ' . $th->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat membuat transaksi.',
-                'error'   => $th->getMessage(),
-            ], 500);
+            return response()->json($th->getMessage(), 500);
         }
     }
 
-
-
     /**
-     * Store a manually created payment (manual verification).
+     * Store a newly created resource in storage.
      */
     public function manualStore(Request $request)
     {
@@ -142,12 +119,10 @@ class TransactionController extends Controller {
             $data = $request->all();
 
             $transaction = Transaction::find($data['transaction_id']);
-            // update status to OK and type to manual
+            //update status to OK and type to manual
             $transaction->update([
-                'type'   => "Manual",
-                'status' => "OK",
-                // optionally clear expired_at
-                'expired_at' => null,
+                'type'          => "Manual",
+                'status'        => "OK"
             ]);
 
             // ambil nama siswa
@@ -170,6 +145,8 @@ class TransactionController extends Controller {
                 'message' => "Pembayaran manual berhasil dicatat",
                 'data'    => $transaction
             ]);
+
+            return response()->json($transaction);
         }  catch (ValidationException $e) {
             return response()->json($e->errors(), 500);
         } catch (\Throwable $th) {
@@ -177,28 +154,19 @@ class TransactionController extends Controller {
         }
     }
 
-    /**
+    /** 
      * Display the specified resource.
      */
     public function show(string $id, Request $request)
     {
         try {
             $year = urldecode($request->query("year"));
-            $status = $request->query('status'); // finish/unfinish/error/null
-            
 
             $student = User::selectRaw("users.*, classes.name AS class_name, academic_years.year")
                 ->join('classes', 'classes.id', '=', 'users.class_id')
                 ->join('academic_years', 'academic_years.id', '=', 'users.academic_year_id')
                 ->where('users.id', $id)
                 ->first();
-
-            // ====== Pastikan transaksi pending yang sudah expired menjadi Expired di server ======
-            Transaction::where('student_id', $id)
-                ->where('status', 'Pending')
-                ->whereNotNull('expired_at')
-                ->where('expired_at', '<', Carbon::now())
-                ->update(['status' => 'Belum Lunas']);
 
             $data = Transaction::select("*")
                 ->where('student_id', '=', $id)
@@ -211,10 +179,18 @@ class TransactionController extends Controller {
                 $x['no'] = $key + 1;
             }
 
-            return view("pages.transaction.detail", compact('data', 'student', 'academicYears', 'year','status'));
+            return view("pages.transaction.detail", compact('data', 'student', 'academicYears', 'year'));
         } catch (\Throwable $th) {
             return redirect()->route('spp.transaction.index')->with('error', 'Terjadi kesalahan saat mengambil data.');
         }
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(string $id)
+    {
+        //
     }
 
     /**
@@ -227,8 +203,7 @@ class TransactionController extends Controller {
 
             // update status transaksi
             $transaction->update([
-                'status' => "OK",
-                'expired_at' => null, // clear expired when paid 
+                'status' => "OK"
             ]);
             
             // ambil nama siswa
@@ -251,7 +226,7 @@ class TransactionController extends Controller {
                 'amount'         => $transaction->price,
                 'type'           => $transaction->type
             ]);
-             
+            
             return response()->json([
                 'status'  => "OK",
                 'message' => "Transaksi berhasil diupdate dan dicatat ke income",
@@ -274,67 +249,60 @@ class TransactionController extends Controller {
     }
 
     /**
+     * Get a single transaction by ID (for API purposes)
+     */
+    public function getTransaction(string $id)
+    {
+        try {
+            $transaction = Transaction::findOrFail($id);
+            return response()->json($transaction);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => 'Transaksi tidak ditemukan'], 404);
+        }
+    }
+
+    /**
+     * Check transaction timeout and reset if needed
+     */
+    public function checkTimeout(Request $request)
+    {
+        try {
+            $transactionId = $request->input('transaction_id');
+            $transaction = Transaction::findOrFail($transactionId);
+            
+            if ($transaction->status === 'Pending' && $transaction->expired_at) {
+                $now = Carbon::now();
+                $expiresAt = Carbon::parse($transaction->expired_at);
+                
+                if ($now->gt($expiresAt)) {
+                    // Application timeout has expired, reset status to "Belum Lunas"
+                    $transaction->update([
+                        'status' => 'Belum Lunas',
+                        'snap_token' => null, // Clear the old snap token
+                        'expired_at' => null  // Clear the expired_at timestamp
+                    ]);
+                    
+                    return response()->json([
+                        'status' => 'timeout_expired',
+                        'message' => 'Waktu pembayaran telah habis, status dikembalikan ke Belum Lunas'
+                    ]);
+                }
+            }
+            
+            return response()->json([
+                'status' => 'active',
+                'transaction' => $transaction
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => 'Transaksi tidak ditemukan'], 404);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
         //
-    }
-
-    public function finish(Request $request)
-    {
-        return view('transactions.finish', [
-            'order_id' => $request->query('order_id'),
-        ]);
-    }
-
-    public function unfinish(Request $request)
-    {
-        return view('transactions.unfinish', [
-            'order_id' => $request->query('order_id'),
-        ]);
-    }
-
-    public function error(Request $request)
-    {
-        return view('transactions.error', [
-            'order_id' => $request->query('order_id'),
-        ]);
-    }
-
-    public function notification(Request $request)
-    {
-        $notif = new \Midtrans\Notification();
-
-        $transaction = $notif->transaction_status;
-        $type        = $notif->payment_type;
-        $orderId     = $notif->order_id;
-        $fraud       = $notif->fraud_status;
-
-        $spp = Transaction::where('id', $orderId)->first();
-
-        if (!$spp) {
-            return response()->json(['message' => 'Transaction not found'], 404);
-        }
-
-        if ($transaction == 'capture') {
-            if ($fraud == 'challenge') {
-                $spp->update(['status' => 'Pending']);
-            } else if ($fraud == 'accept') {
-                $spp->update(['status' => 'Lunas']);
-            }
-        } else if ($transaction == 'settlement') {
-            $spp->update(['status' => 'Lunas']);
-        } else if ($transaction == 'pending') {
-            $spp->update(['status' => 'Pending']);
-        } else if ($transaction == 'deny') {
-            $spp->update(['status' => 'Dibatalkan']);
-        } else if ($transaction == 'expire') {
-            $spp->update(['status' => 'Belum Lunas']);
-        } else if ($transaction == 'cancel') {
-            $spp->update(['status' => 'Dibatalkan']);
-        }
-
-        return response()->json(['message' => 'OK']);
     }
 }

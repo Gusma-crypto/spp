@@ -19,6 +19,7 @@ Route::get('/', function () {
 });
 
 Auth::routes();
+Route::post('/midtrans/notification', [TransactionController::class, 'notificationHandler'])->name('spp.transaction.notificationHandler');
 
 Route::middleware(['auth'])->group(function () {
     Route::prefix('dashboard')->group(function () {
@@ -102,15 +103,26 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/', 'index')->name('spp.transaction.index');
                 Route::get('/create', 'create')->name('spp.transaction.create');
                 Route::post('/store', 'store')->name('spp.transaction.store');
-                Route::post('/notification', 'notificationHandler')->name('spp.transaction.midtransNotification');
+
+                // Simpan manual
                 Route::post('/manual-store', 'manualStore')->name('spp.transaction.manualStore');
+                //bayar otomatis
+                Route::post('/midtrans/notification', 'notificationHandler')->name('spp.transaction.notificationHandler');
+
+                // Detail & edit
                 Route::get('/show/{id}', 'show')->name('spp.transaction.show');
                 Route::get('/edit/{id}', 'edit')->name('spp.transaction.edit');
                 Route::patch('/update/{id}', 'update')->name('spp.transaction.update');
-                Route::delete('/destroy/${id}', 'destroy')->name('spp.transaction.destroy');
-                Route::get('/midtrans/notification', 'notification')->name('spp.transaction.midtransNotification');
+                Route::delete('/destroy/{id}', 'destroy')->name('spp.transaction.destroy');
+
+                // Refresh status Midtrans (manual via API)
+                Route::get('/check-status/{id}', 'checkStatus')->name('spp.transaction.checkStatus');
+                Route::post('/update-status', 'updateStatus')->name('spp.transaction.updateStatus');
+                Route::get('/get-transaction/{id}', 'getTransaction')->name('spp.transaction.getTransaction');
+                Route::post('/check-timeout', 'checkTimeout')->name('spp.transaction.checkTimeout');
             });
-        });  
+        });
+
 
         Route::prefix('laporan')->group(function () {
             Route::controller(ReportController::class)->group(function () {

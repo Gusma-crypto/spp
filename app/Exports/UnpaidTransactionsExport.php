@@ -53,6 +53,9 @@ class UnpaidTransactionsExport implements FromArray, WithHeadings, WithTitle, Wi
         $query = Transaction::whereYear('date', $this->year)
             ->whereMonth('date', $this->month)
             ->where('status', 'Belum Lunas')
+            // ->get();
+            // ->where('status', '!=', 'OK')
+            // ->where('status', '!=', 'Lunas')
             ->with(['student.mclass']); 
 
         if ($this->kelasId) {

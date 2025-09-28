@@ -52,14 +52,14 @@ class UnpaidTransactionsExport implements FromArray, WithHeadings, WithTitle, Wi
     {
         $query = Transaction::whereYear('date', $this->year)
             ->whereMonth('date', $this->month)
-            ->where('status', '!=', 'OK')
-            ->with(['student.mclass']);
+            ->where('status', 'Belum Lunas')
+            ->with(['student.mclass']); 
 
         if ($this->kelasId) {
             $query->whereHas('student.mclass', function ($q) {
                 $q->where('id', $this->kelasId);
             });
-        }
+        } 
 
         $transactions = $query->get();
 
@@ -98,7 +98,7 @@ class UnpaidTransactionsExport implements FromArray, WithHeadings, WithTitle, Wi
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
                 ],
             ],
-            'alignment' => [
+            'alignment' => [ 
                 'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
             ],
         ]);
